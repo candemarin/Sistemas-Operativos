@@ -46,7 +46,6 @@ void otherProcess(int toRead, int toWrite) {
 }
 
 
-
 int main(int argc, char **argv)
 {   
     //Funcion para cargar nueva semilla para el numero aleatorio
@@ -69,14 +68,28 @@ int main(int argc, char **argv)
     int fatherToStarter[2];
     pipe(fatherToStarter);
 
-    // Must check
-    //write(fatherToStarter[PIPE_WRITE], &buffer, sizeof(buffer));
+	pid_t starterPid;
 
     for (size_t i = 0; i < n; i++){
         if (fork() == 0){
+
+			for (int j = 0; j < n; j++) {
+				if (j == i % n) {
+					//close(pipes[j][PIPE_WRITE]);
+				} else if (j == (i + 1) % n) {
+					//close(pipes[j][PIPE_READ]);
+				} else {
+					close(pipes[j][PIPE_WRITE]);
+					close(pipes[j][PIPE_READ]);
+				}
+			}
+
             if (i == start) {
+				starterPid = getpid();
                 starterProcess(pipes[i % n][PIPE_READ], pipes[(i + 1) % n][PIPE_WRITE], fatherToStarter[PIPE_READ], fatherToStarter[PIPE_WRITE]);
             } else {
+				close(fatherToStarter[PIPE_WRITE]);
+				close(fatherToStarter[PIPE_READ]);
                 otherProcess(pipes[i % n][PIPE_READ], pipes[(i + 1) % n][PIPE_WRITE]);
             }
         }
@@ -88,19 +101,21 @@ int main(int argc, char **argv)
         close(pipes[i][PIPE_READ]);
     }
 
-    // must check
-
-    
     write(fatherToStarter[PIPE_WRITE], &buffer, sizeof(buffer));
 
     int result;
 
-    sleep(1);
-    //deberiamos de cerrar los pipes
+	// sleep(1);
+	// deberiamos cerrar los pipes
+
+	waitpid(starterPid, &status, 0);
 
     read(fatherToStarter[PIPE_READ], &result, sizeof(result));
 
     printf("El valor acumulado es %d\n", result);
     
+	close(fatherToStarter[PIPE_WRITE]);
+	close(fatherToStarter[PIPE_READ]);
+
     exit(0);
 }
