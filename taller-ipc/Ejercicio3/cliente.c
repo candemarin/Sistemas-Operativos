@@ -37,9 +37,23 @@ void trim(char *str) {
     memmove(str, start, end - start + 2);
 }
 
+int server_socket;
+
+void sigint_handler(int sig) {
+    write(server_socket, "exit", sizeof("exit"));
+	printf("\nCliente: cerrando conexión...\n");
+	close(server_socket);
+	exit(0);
+}
+
 int main() {
 	signal(SIGPIPE, SIG_IGN);
-	int server_socket;
+
+	// Manejo de la señal SIGINT
+    // Esto permite cerrar el socket y salir del programa de manera limpia
+    // al recibir Ctrl+C.
+    signal(SIGINT, sigint_handler);
+
     struct sockaddr_un server_addr;
 
     server_addr.sun_family = AF_UNIX;
@@ -58,15 +72,11 @@ int main() {
 		fgets(cuenta, sizeof(cuenta), stdin);
 		trim(cuenta);
 		if (strcmp(cuenta,"exit") == 0) {
-			write(server_socket, cuenta, sizeof(cuenta));
-			printf("Cliente: cerrando conexión...\n");
-			// Cerrar el socket
-			close(server_socket);
-			exit(0);			
+			sigint_handler(2);			
 		}
+
 		int resultado;
 
-		
 		printf("Cliente: enviando %s al servidor...\n", cuenta);
 		
     	if (write(server_socket, &cuenta, sizeof(cuenta)) == -1) {
@@ -77,7 +87,7 @@ int main() {
 	
 		printf("Cliente: esperando respuesta del servidor...\n");
     
-		if (read(server_socket, &resultado, sizeof(resultado)) == 0) {
+		if (read(server_socket, &resultado, sizeof(resultado)) == -1) {
 			printf("El servidor ha sido cerrado\n");
 			close(server_socket);
 			exit(0);
