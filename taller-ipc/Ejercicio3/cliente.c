@@ -87,7 +87,7 @@ int main() {
 	
 		printf("Cliente: esperando respuesta del servidor...\n");
     
-		if (read(server_socket, &resultado, sizeof(resultado)) == -1) {
+		if (read(server_socket, &resultado, sizeof(resultado)) == 0) {
 			printf("El servidor ha sido cerrado\n");
 			close(server_socket);
 			exit(0);

@@ -93,6 +93,7 @@ int main() {
                     close(client_socket);
                     exit(0);
                 }
+                
                 int resultado = calcular(buffer);
                 printf("Servidor: calculando %s = %d\n", buffer, resultado);
                 // Enviar el resultado al cliente
