@@ -11,17 +11,56 @@
 static int upper_bound = -1;
 
 static ssize_t azar_read(struct file *filp, char __user *data, size_t size, loff_t *offset) {
-    
     /* Completar */
+    printk("%d" , upper_bound);
+    if (upper_bound <= 0) {
+        return -EPERM;
+    }
     
-    return -EPERM;
+    unsigned int random_number;
+    char* intToStringBuffer;
+    int minimum;
+
+    /*if (size < sizeof(random_number)) {
+        return -EINVAL;
+    }*/
+
+    intToStringBuffer = kmalloc(size, GFP_KERNEL);
+
+    get_random_bytes(&random_number, sizeof(random_number));
+    random_number = random_number % (upper_bound);
+    printk("el random number es: %d" , random_number);
+
+    minimum = snprintf(intToStringBuffer, size, "%d\n", random_number);
+    minimum = min(minimum, size);
+
+
+    printk("nuestro string es: %s" , intToStringBuffer);
+
+    copy_to_user(data, intToStringBuffer, minimum);
+
+    kfree(intToStringBuffer);
+
+    return minimum;
 }
 
 static ssize_t azar_write(struct file *filp, const char __user *data, size_t size, loff_t *offset) {
-    
     /* Completar */
+    int result;
+    char* intAsStringBuffer;
     
-    return -EPERM;
+    intAsStringBuffer = kmalloc(size + 1, GFP_KERNEL);
+    copy_from_user(intAsStringBuffer, data, size);
+    intAsStringBuffer[size] = '\0';
+    if (kstrtoint(intAsStringBuffer, 10, &result) != 0) {
+        kfree(intAsStringBuffer);
+        return -EPERM;
+    }
+    upper_bound = result;
+
+    kfree(intAsStringBuffer);
+    
+    return size;
 }
 
 static struct file_operations azar_fops = {
