@@ -359,58 +359,61 @@ struct Ext2FSInode * Ext2FS::get_file_inode_from_dir_inode(struct Ext2FSInode * 
 	assert(INODE_ISDIR(from));
 
 	unsigned int block_size = 1024 << _superblock->log_block_size;
-	unsigned char *block_buffer = new unsigned char[block_size];
 	
 	for(unsigned int i = 0; i < 12; i++) {
 		
-		if (from->block[i] == 0)
-            continue;
+		if (from->block[i] == 0) continue;
 
+		unsigned char *block_buffer = new unsigned char[block_size];
 		read_block(from->block[i], block_buffer);
 
 		unsigned int block_offset = 0;
 
 		while (block_offset < block_size) {
-			struct Ext2FSDirEntry * entry = (Ext2FSDirEntry*)(block_buffer + block_offset);	
+			Ext2FSDirEntry * entry = (Ext2FSDirEntry*)(block_buffer + block_offset);
+			if (entry->record_length == 0 || entry->inode == 0) break;
 			int name_length = entry->name_length;
-			char name[name_length + 1];
+			char name[256] = {0};
+			if (name_length > 255) name_length = 255;
 			strncpy(name, entry->name, name_length);
-			name[name_length] = '\0';
 			if(strcmp(name, filename) == 0) {
 				delete[] block_buffer;
 				return load_inode(entry->inode);
 			}
 			block_offset += entry->record_length;
 		}
+
+		delete[] block_buffer;
 	}
 
 	int pointers_per_block = block_size / sizeof(unsigned int);
+	unsigned int block_offset = 0;
 
 	unsigned int *indirect_block = new unsigned int[pointers_per_block];
 	read_block(from->block[12], (unsigned char*)indirect_block);
 
 	for(unsigned int i = 0; i < pointers_per_block; i++) {
 
-		if (indirect_block[i] == 0)
-			continue;
+		if (indirect_block[i] == 0) continue;
 
+		unsigned char *block_buffer = new unsigned char[block_size];
 		read_block(indirect_block[i], block_buffer);
 
-		unsigned int block_offset = 0;
 		while (block_offset < block_size) {
-			Ext2FSDirEntry* entry = (Ext2FSDirEntry*)(block_buffer + block_offset);
+			Ext2FSDirEntry * entry = (Ext2FSDirEntry*)(block_buffer + block_offset);
+			if (entry->record_length == 0 || entry->inode == 0) break;
 			int name_length = entry->name_length;
-			char name[name_length + 1];
+			char name[256] = {0};
+			if (name_length > 255) name_length = 255;
 			strncpy(name, entry->name, name_length);
-			name[name_length] = '\0';
 			if (strcmp(name, filename) == 0) {
 				delete[] block_buffer;
 				delete[] indirect_block;
 				return load_inode(entry->inode);
 			}
 			block_offset += entry->record_length;
-			if (entry->record_length == 0) break;
 		}
+		delete[] block_buffer;
 	}
 
 	delete[] indirect_block;
@@ -423,20 +426,23 @@ struct Ext2FSInode * Ext2FS::get_file_inode_from_dir_inode(struct Ext2FSInode * 
 		if (double_indirect_block[i] == 0) continue;
 
 		unsigned int* indirect_block = new unsigned int[pointers_per_block];
+		unsigned int block_offset = 0;
 		read_block(double_indirect_block[i], (unsigned char*)indirect_block);
 
 		for(unsigned int j = 0; j < pointers_per_block; j++) {
 			if (indirect_block[j] == 0) continue;
 
+			unsigned char *block_buffer = new unsigned char[block_size];
 			read_block(indirect_block[j], block_buffer);
 
-			unsigned int block_offset = 0;
 			while (block_offset < block_size) {
-				Ext2FSDirEntry* entry = (Ext2FSDirEntry*)(block_buffer + block_offset);
+				Ext2FSDirEntry * entry = (Ext2FSDirEntry*)(block_buffer + block_offset);
+				if (entry->record_length == 0 || entry->inode == 0) break;
 				int name_length = entry->name_length;
-				char name[name_length + 1];
+				char name[256] = {0};
+				if (name_length > 255) name_length = 255;
 				strncpy(name, entry->name, name_length);
-				name[name_length] = '\0';
+				
 				if (strcmp(name, filename) == 0) {
 					delete[] block_buffer;
 					delete[] indirect_block;
@@ -444,15 +450,16 @@ struct Ext2FSInode * Ext2FS::get_file_inode_from_dir_inode(struct Ext2FSInode * 
 					return load_inode(entry->inode);
 				}
 				block_offset += entry->record_length;
-				if (entry->record_length == 0) break;
 			}
+
+			delete[] block_buffer;
 		}
 
 		delete[] indirect_block;
 	}
 
 	delete[] double_indirect_block;
-	delete[] block_buffer;
+
 	return NULL; // Not found
 }
 
